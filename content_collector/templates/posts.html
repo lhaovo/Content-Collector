@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-8">
+  <section>
+    <h1 class="text-3xl font-bold">Posts</h1>
+    <p class="text-slate-400 mt-2">已确认入库的帖子和待确认候选分组。</p>
+  </section>
+
+  {% if candidates %}
+  <section class="rounded-xl bg-amber-950/30 border border-amber-800 p-6">
+    <h2 class="text-xl font-semibold mb-4">待确认候选</h2>
+    <div class="space-y-3">
+      {% for candidate in candidates %}
+      <div class="rounded bg-slate-950 border border-slate-800 p-4">
+        <div class="flex justify-between">
+          <div>
+            <div class="font-medium">{{ candidate.candidate_json.get('title') or candidate.candidate_json.get('group_name') }}</div>
+            <div class="text-sm text-slate-400">confidence: {{ '%.2f'|format(candidate.confidence) }}</div>
+          </div>
+          <form method="post" action="/candidates/{{ candidate.id }}/accept">
+            <button class="rounded bg-amber-600 px-3 py-2 text-sm">接受</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-800 text-slate-300">
+        <tr>
+          <th class="text-left p-4">标题</th>
+          <th class="text-left p-4">状态</th>
+          <th class="text-left p-4">来源</th>
+          <th class="text-left p-4">更新时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for post in posts %}
+        <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+          <td class="p-4"><a class="text-blue-400" href="/posts/{{ post.id }}">{{ post.title or post.id }}</a></td>
+          <td class="p-4">{{ post.status }}</td>
+          <td class="p-4 text-slate-400">{{ post.source_path }}</td>
+          <td class="p-4 text-slate-500">{{ post.updated_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="p-6 text-slate-500">暂无帖子</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

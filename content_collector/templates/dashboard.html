@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-8">
+  <section>
+    <h1 class="text-3xl font-bold">Dashboard</h1>
+    <p class="text-slate-400 mt-2">本地多模态内容采集和入库管理。</p>
+  </section>
+
+  <section class="grid grid-cols-4 gap-4">
+    {% for key, value in stats.items() %}
+    <div class="rounded-xl bg-slate-900 border border-slate-800 p-5">
+      <div class="text-slate-400 text-sm">{{ key }}</div>
+      <div class="text-3xl font-semibold mt-2">{{ value }}</div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
+    <h2 class="text-xl font-semibold mb-4">导入文件夹</h2>
+    <form method="post" action="/imports" class="space-y-4">
+      <input name="root_path" class="w-full rounded bg-slate-950 border border-slate-700 px-4 py-3" placeholder="例如 E:\\content\\input" required>
+      <label class="flex items-center gap-2 text-sm text-slate-300">
+        <input type="checkbox" name="auto_extract" value="true" class="rounded">
+        导入后立即抽取素材
+      </label>
+      <button class="rounded bg-blue-600 hover:bg-blue-500 px-4 py-2 font-medium">开始导入</button>
+    </form>
+  </section>
+
+  <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
+    <h2 class="text-xl font-semibold mb-4">最近扫描</h2>
+    <div class="space-y-2">
+      {% for scan in scans %}
+      <div class="flex justify-between border-b border-slate-800 py-3 text-sm">
+        <span>{{ scan.root_path }}</span>
+        <span class="text-slate-400">{{ scan.file_count }} files · {{ scan.status }}</span>
+      </div>
+      {% else %}
+      <div class="text-slate-500">暂无扫描记录</div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-8">
+  <section class="flex justify-between items-start">
+    <div>
+      <h1 class="text-3xl font-bold">{{ post.title if post else 'Post' }}</h1>
+      <p class="text-slate-400 mt-2">{{ post.source_path if post else '' }}</p>
+    </div>
+    {% if post %}
+    <form method="post" action="/posts/{{ post.id }}/extract">
+      <button class="rounded bg-blue-600 hover:bg-blue-500 px-4 py-2">抽取 / 重新组织</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
+    <h2 class="text-xl font-semibold mb-4">Assets</h2>
+    <div class="space-y-2">
+      {% for asset in assets %}
+      <div class="grid grid-cols-5 gap-4 border-b border-slate-800 py-3 text-sm">
+        <span>{{ asset.sort_order }}</span>
+        <span>{{ asset.asset_type }}</span>
+        <span>{{ asset.role }}</span>
+        <span>{{ asset.status }}</span>
+        <span class="text-slate-400 truncate">{{ asset.path }}</span>
+      </div>
+      {% else %}
+      <div class="text-slate-500">暂无素材</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
+    <h2 class="text-xl font-semibold mb-4">Extracted Blocks</h2>
+    <div class="space-y-4">
+      {% for block in blocks %}
+      <div class="rounded bg-slate-950 border border-slate-800 p-4">
+        <div class="text-sm text-slate-400 mb-2">{{ block.block_type }} · {{ block.asset_id }}</div>
+        <pre class="whitespace-pre-wrap text-sm">{{ block.text }}</pre>
+      </div>
+      {% else %}
+      <div class="text-slate-500">暂无抽取结果</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
+    <h2 class="text-xl font-semibold mb-4">Documents</h2>
+    <div class="space-y-4">
+      {% for doc in documents %}
+      <div class="rounded bg-slate-950 border border-slate-800 p-4">
+        <div class="font-medium">{{ doc.title }}</div>
+        <p class="text-slate-300 mt-2">{{ doc.summary }}</p>
+        <pre class="whitespace-pre-wrap text-xs text-slate-400 mt-4">{{ doc.body }}</pre>
+      </div>
+      {% else %}
+      <div class="text-slate-500">暂无结构化文档</div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

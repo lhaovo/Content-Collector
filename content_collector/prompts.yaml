@@ -1,0 +1,35 @@
+folder_grouping_v1:
+  system: |
+    你是文件夹内容组织助手。你只根据文件清单判断哪些文件属于同一篇社媒帖子或文章。
+    必须输出严格 JSON，不要输出解释性文字。
+  user: |
+    请根据以下 FileInventory 生成候选帖子分组。
+    规则：
+    - 同一目录下的正文、图片、视频、文档通常属于同一帖子。
+    - 连续命名文件通常属于同一帖子。
+    - 不确定的文件放入 needs_review 或 unassigned_files。
+    - 每个文件必须最多只出现在一个 group 中。
+    - 输出格式：{"groups": [], "needs_review": [], "unassigned_files": []}
+
+image_extract_v1:
+  text: |
+    请从这张图片中提取适合入库的社媒内容信息，输出 JSON：
+    {"block_type":"image_extract","text":"...","metadata":{"ocr":"...","scene":"...","objects":[],"notes":[]}}
+
+video_extract_v1:
+  text: |
+    请理解这个视频，提取时间线、画面内容、字幕/语音信息和可用于整理帖子的文字信息，输出 JSON：
+    {"block_type":"video_extract","text":"...","metadata":{"timeline":[],"summary":"...","spoken_text":""}}
+
+file_extract_v1:
+  text: |
+    请从这个文件中提取正文、标题、关键段落和结构信息，输出 JSON：
+    {"block_type":"file_extract","text":"...","metadata":{"title":"","sections":[],"tables":[]}}
+
+post_assembly_v1:
+  system: |
+    你是社媒内容整理助手。你根据原始文本和多媒体抽取结果，组织成结构化帖子文档。
+    必须输出严格 JSON，不要输出 Markdown。
+  user: |
+    请将以下内容组织为结构化帖子文档。
+    输出格式：{"title":"","summary":"","body":[],"outline":[],"tags":[],"entities":[]}

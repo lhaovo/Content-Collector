@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-8">
+  <section>
+    <h1 class="text-3xl font-bold">Jobs</h1>
+    <p class="text-slate-400 mt-2">素材抽取任务记录。</p>
+  </section>
+
+  <section class="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-800 text-slate-300">
+        <tr>
+          <th class="text-left p-4">类型</th>
+          <th class="text-left p-4">状态</th>
+          <th class="text-left p-4">模型</th>
+          <th class="text-left p-4">错误</th>
+          <th class="text-left p-4">时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr class="border-t border-slate-800">
+          <td class="p-4">{{ job.input_type }}</td>
+          <td class="p-4">{{ job.status }}</td>
+          <td class="p-4 text-slate-400">{{ job.model }}</td>
+          <td class="p-4 text-red-300">{{ job.error_message }}</td>
+          <td class="p-4 text-slate-500">{{ job.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="p-6 text-slate-500">暂无任务</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}
