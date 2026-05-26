@@ -18,7 +18,7 @@ def init_database() -> None:
 
 
 @app.command("serve")
-def serve(host: str = "127.0.0.1", port: int = 8000, reload: bool = False) -> None:
+def serve(host: str = "127.0.0.1", port: int = 8632, reload: bool = False) -> None:
     uvicorn.run("content_collector.main:app", host=host, port=port, reload=reload)
 
 

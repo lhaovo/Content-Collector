@@ -16,6 +16,7 @@ from content_collector.models import (
     Post,
     PostDocument,
     PostGroupCandidate,
+    PostProcessingRun,
     now_utc,
 )
 from content_collector.scanner import file_sha256, guess_asset_type, guess_mime, scan_folder
@@ -69,14 +70,30 @@ class ImportWorkflow:
         for post in posts:
             self.extract_post(post.id)
 
-    def extract_post(self, post_id: str) -> None:
+    def extract_post(self, post_id: str, run_id: str | None = None) -> None:
         post = self.session.get(Post, post_id)
         if not post:
             raise ValueError(f"帖子不存在：{post_id}")
         assets = self.session.exec(select(Asset).where(Asset.post_id == post_id).order_by(Asset.sort_order)).all()
+        run = self._ensure_processing_run(post, assets, run_id)
+        post.status = "processing"
+        post.updated_at = now_utc()
+        self.session.add(post)
+        self.session.commit()
+        for asset in assets:
+            asset.status = "pending"
+            asset.updated_at = now_utc()
+            self.session.add(asset)
+        self.session.commit()
+
         blocks: list[ExtractedBlock] = []
 
-        for asset in assets:
+        for index, asset in enumerate(assets, start=1):
+            run.current_step = f"处理素材 {index}/{len(assets)}：{asset.file_name or asset.asset_type}"
+            run.updated_at = now_utc()
+            self.session.add(run)
+            self.session.commit()
+
             job = ExtractionJob(
                 post_id=post.id,
                 asset_id=asset.id,
@@ -105,6 +122,7 @@ class ImportWorkflow:
                     sort_order=asset.sort_order,
                     metadata_=result.metadata,
                 )
+                run.completed_steps += 1
                 self.session.add(block)
                 blocks.append(block)
             except Exception as error:
@@ -112,11 +130,16 @@ class ImportWorkflow:
                 job.error_message = str(error)
                 job.finished_at = now_utc()
                 asset.status = "failed"
+                run.failed_steps += 1
 
             job.updated_at = now_utc()
             asset.updated_at = now_utc()
+            post.updated_at = now_utc()
+            run.updated_at = now_utc()
             self.session.add(job)
             self.session.add(asset)
+            self.session.add(post)
+            self.session.add(run)
             self.session.commit()
 
         persisted_blocks = self.session.exec(select(ExtractedBlock).where(ExtractedBlock.post_id == post.id)).all()
@@ -130,25 +153,58 @@ class ImportWorkflow:
             }
             for block in sorted(persisted_blocks, key=lambda item: item.sort_order)
         ]
-        document = self.ai.assemble_post(post.title, block_payloads)
-        post_doc = PostDocument(
-            post_id=post.id,
-            title=document.title,
-            summary=document.summary,
-            body=document.body,
-            outline=document.outline,
-            tags=document.tags,
-            entities=document.entities,
-            status="assembled",
-            model=settings.content_collector_model,
-            prompt_version="post_assembly_v1",
-            raw_response=document.model_dump(),
-        )
-        post.status = "completed"
+        try:
+            run.current_step = "生成结构化文档"
+            run.updated_at = now_utc()
+            self.session.add(run)
+            self.session.commit()
+            document = self.ai.assemble_post(post.title, block_payloads)
+            post_doc = PostDocument(
+                post_id=post.id,
+                title=document.title,
+                summary=document.summary,
+                body=document.body,
+                outline=document.outline,
+                tags=document.tags,
+                entities=document.entities,
+                status="assembled",
+                model=settings.content_collector_model,
+                prompt_version="post_assembly_v1",
+                raw_response=document.model_dump(),
+            )
+            self.session.add(post_doc)
+        except Exception as error:
+            run.error_message = str(error)
+            post.metadata_ = {**post.metadata_, "assembly_error": str(error)}
+
+        failed_assets = [asset for asset in assets if asset.status == "failed"]
+        post.status = "partial_failed" if failed_assets else "completed"
         post.updated_at = now_utc()
-        self.session.add(post_doc)
+        run.status = post.status
+        run.current_step = "素材处理完成" if post.status == "completed" else "素材处理完成，存在失败项"
+        run.finished_at = now_utc()
+        run.updated_at = now_utc()
+        self.session.add(run)
         self.session.add(post)
         self.session.commit()
+
+    def _ensure_processing_run(self, post: Post, assets: list[Asset], run_id: str | None) -> PostProcessingRun:
+        run = self.session.get(PostProcessingRun, run_id) if run_id else None
+        if not run:
+            run = PostProcessingRun(post_id=post.id)
+        run.status = "processing"
+        run.total_steps = len(assets)
+        run.completed_steps = 0
+        run.failed_steps = 0
+        run.current_step = "准备处理"
+        run.error_message = ""
+        run.started_at = now_utc()
+        run.finished_at = None
+        run.updated_at = now_utc()
+        self.session.add(run)
+        self.session.commit()
+        self.session.refresh(run)
+        return run
 
     def _save_candidates(self, scan: FolderScan, grouping: GroupingResult) -> None:
         for group in grouping.groups:

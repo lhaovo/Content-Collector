@@ -2,54 +2,171 @@
 {% block content %}
 <div class="space-y-8">
   <section>
-    <h1 class="text-3xl font-bold">Posts</h1>
-    <p class="text-slate-400 mt-2">已确认入库的帖子和待确认候选分组。</p>
+    <h1 class="text-3xl font-bold">内容库</h1>
+    <p class="text-slate-400 mt-2">通过按钮切换查看未入库、已入库和已处理内容，可多选后批量操作。</p>
   </section>
 
-  {% if candidates %}
-  <section class="rounded-xl bg-amber-950/30 border border-amber-800 p-6">
-    <h2 class="text-xl font-semibold mb-4">待确认候选</h2>
-    <div class="space-y-3">
-      {% for candidate in candidates %}
-      <div class="rounded bg-slate-950 border border-slate-800 p-4">
-        <div class="flex justify-between">
-          <div>
-            <div class="font-medium">{{ candidate.candidate_json.get('title') or candidate.candidate_json.get('group_name') }}</div>
-            <div class="text-sm text-slate-400">confidence: {{ '%.2f'|format(candidate.confidence) }}</div>
-          </div>
-          <form method="post" action="/candidates/{{ candidate.id }}/accept">
-            <button class="rounded bg-amber-600 px-3 py-2 text-sm">接受</button>
-          </form>
-        </div>
+  <section class="grid grid-cols-3 gap-3">
+    <a href="/posts?tab=unimported" class="rounded-xl border px-5 py-4 {% if active_tab == 'unimported' %}bg-amber-600 border-amber-500 text-white{% else %}bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800{% endif %}">
+      <div class="text-lg font-semibold">未入库</div>
+      <div class="text-sm opacity-80 mt-1">{{ candidates|length }} 个候选</div>
+    </a>
+    <a href="/posts?tab=imported" class="rounded-xl border px-5 py-4 {% if active_tab == 'imported' %}bg-blue-600 border-blue-500 text-white{% else %}bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800{% endif %}">
+      <div class="text-lg font-semibold">已入库</div>
+      <div class="text-sm opacity-80 mt-1">{{ imported_posts|length }} 条待处理</div>
+    </a>
+    <a href="/posts?tab=processed" class="rounded-xl border px-5 py-4 {% if active_tab == 'processed' %}bg-emerald-600 border-emerald-500 text-white{% else %}bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800{% endif %}">
+      <div class="text-lg font-semibold">已处理</div>
+      <div class="text-sm opacity-80 mt-1">{{ processed_posts|length }} 条完成</div>
+    </a>
+  </section>
+
+  <form method="post" action="/posts/bulk" id="bulk-form">
+    <input type="hidden" name="tab" value="{{ active_tab }}">
+    <input type="hidden" name="action" id="bulk-action" value="">
+  </form>
+
+  <div class="space-y-4">
+
+    <div class="flex items-center justify-between rounded-xl bg-slate-900 border border-slate-800 p-4">
+      <label class="flex items-center gap-2 text-sm text-slate-300">
+        <input type="checkbox" id="select-all" class="rounded">
+        全选当前列表
+      </label>
+      <div class="flex gap-3">
+        {% if active_tab != 'unimported' %}
+        <button type="button" data-action="process" class="bulk-action rounded bg-blue-600 hover:bg-blue-500 px-4 py-2 text-sm font-medium">批量提交处理</button>
+        {% endif %}
+        <button type="button" data-action="delete" class="bulk-action rounded bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-medium">批量删除</button>
       </div>
-      {% endfor %}
     </div>
-  </section>
-  {% endif %}
 
-  <section class="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
-    <table class="w-full text-sm">
-      <thead class="bg-slate-800 text-slate-300">
-        <tr>
-          <th class="text-left p-4">标题</th>
-          <th class="text-left p-4">状态</th>
-          <th class="text-left p-4">来源</th>
-          <th class="text-left p-4">更新时间</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for post in posts %}
-        <tr class="border-t border-slate-800 hover:bg-slate-800/50">
-          <td class="p-4"><a class="text-blue-400" href="/posts/{{ post.id }}">{{ post.title or post.id }}</a></td>
-          <td class="p-4">{{ post.status }}</td>
-          <td class="p-4 text-slate-400">{{ post.source_path }}</td>
-          <td class="p-4 text-slate-500">{{ post.updated_at }}</td>
-        </tr>
+    {% if active_tab == 'unimported' %}
+    <section class="rounded-xl bg-amber-950/30 border border-amber-800 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-xl font-semibold">未入库</h2>
+          <p class="text-sm text-amber-200/80 mt-1">导入后仍需人工确认的候选分组。可多选后批量删除。</p>
+        </div>
+        <div class="text-sm text-amber-200/80">{{ candidates|length }} 个未入库</div>
+      </div>
+      <div class="space-y-3">
+        {% for candidate in candidates %}
+        <div class="rounded bg-slate-950 border border-slate-800 p-4">
+          <div class="flex justify-between gap-4">
+            <div class="flex gap-3 min-w-0">
+              <input type="checkbox" form="bulk-form" name="candidate_ids" value="{{ candidate.id }}" class="bulk-checkbox mt-1 rounded">
+              <div class="min-w-0">
+                <div class="font-medium truncate">{{ candidate.candidate_json.get('title') or candidate.candidate_json.get('group_name') }}</div>
+                <div class="text-sm text-slate-400 mt-1">置信度：{{ '%.2f'|format(candidate.confidence) }}</div>
+                <div class="text-xs text-slate-500 mt-2">{{ candidate.candidate_json.get('reason') }}</div>
+              </div>
+            </div>
+            <form method="post" action="/candidates/{{ candidate.id }}/accept" class="shrink-0">
+              <button class="rounded bg-amber-600 hover:bg-amber-500 px-3 py-2 text-sm font-medium">确认入库</button>
+            </form>
+          </div>
+        </div>
         {% else %}
-        <tr><td colspan="4" class="p-6 text-slate-500">暂无帖子</td></tr>
+        <div class="rounded bg-slate-950 border border-slate-800 p-4 text-slate-500">暂无未入库候选。</div>
         {% endfor %}
-      </tbody>
-    </table>
-  </section>
+      </div>
+    </section>
+    {% elif active_tab == 'imported' %}
+    <section class="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
+      <div class="flex items-center justify-between p-6 border-b border-slate-800">
+        <div>
+          <h2 class="text-xl font-semibold">已入库</h2>
+          <p class="text-sm text-slate-400 mt-1">已经确认入库，但还没有完成抽取和整理的内容。</p>
+        </div>
+        <div class="text-sm text-slate-400">{{ imported_posts|length }} 条待处理</div>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-slate-800 text-slate-300">
+          <tr>
+            <th class="text-left p-4 w-12">选择</th>
+            <th class="text-left p-4">标题</th>
+            <th class="text-left p-4">处理状态</th>
+            <th class="text-left p-4">来源路径</th>
+            <th class="text-left p-4">更新时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for post in imported_posts %}
+          <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+            <td class="p-4"><input type="checkbox" form="bulk-form" name="post_ids" value="{{ post.id }}" class="bulk-checkbox rounded"></td>
+            <td class="p-4"><a class="text-blue-400 hover:text-blue-300" href="/posts/{{ post.id }}">{{ post.title or post.id }}</a></td>
+            <td class="p-4">{{ status_labels.get(post.status, post.status) }}</td>
+            <td class="p-4 text-slate-400 max-w-xl truncate">{{ post.source_path }}</td>
+            <td class="p-4 text-slate-500">{{ post.updated_at }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="p-6 text-slate-500">暂无已入库待处理内容。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% else %}
+    <section class="rounded-xl bg-emerald-950/20 border border-emerald-800 overflow-hidden">
+      <div class="flex items-center justify-between p-6 border-b border-emerald-900/70">
+        <div>
+          <h2 class="text-xl font-semibold">已处理</h2>
+          <p class="text-sm text-emerald-200/80 mt-1">已经完成素材抽取和结构化整理的内容。</p>
+        </div>
+        <div class="text-sm text-emerald-200/80">{{ processed_posts|length }} 条已完成</div>
+      </div>
+      <table class="w-full text-sm">
+        <thead class="bg-emerald-950/50 text-slate-300">
+          <tr>
+            <th class="text-left p-4 w-12">选择</th>
+            <th class="text-left p-4">标题</th>
+            <th class="text-left p-4">处理状态</th>
+            <th class="text-left p-4">来源路径</th>
+            <th class="text-left p-4">更新时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for post in processed_posts %}
+          <tr class="border-t border-emerald-900/70 hover:bg-emerald-950/30">
+            <td class="p-4"><input type="checkbox" form="bulk-form" name="post_ids" value="{{ post.id }}" class="bulk-checkbox rounded"></td>
+            <td class="p-4"><a class="text-emerald-300 hover:text-emerald-200" href="/posts/{{ post.id }}">{{ post.title or post.id }}</a></td>
+            <td class="p-4">{{ status_labels.get(post.status, post.status) }}</td>
+            <td class="p-4 text-slate-400 max-w-xl truncate">{{ post.source_path }}</td>
+            <td class="p-4 text-slate-500">{{ post.updated_at }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="p-6 text-slate-500">暂无已处理内容。</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+    {% endif %}
+  </div>
 </div>
+<script>
+  const selectAll = document.getElementById('select-all');
+  const checkboxes = [...document.querySelectorAll('.bulk-checkbox')];
+  const form = document.getElementById('bulk-form');
+  const actionInput = document.getElementById('bulk-action');
+
+  selectAll?.addEventListener('change', () => {
+    checkboxes.forEach((checkbox) => checkbox.checked = selectAll.checked);
+  });
+
+  document.querySelectorAll('.bulk-action').forEach((button) => {
+    button.addEventListener('click', () => {
+      const selected = checkboxes.filter((checkbox) => checkbox.checked);
+      if (!selected.length) {
+        alert('请先选择要操作的条目。');
+        return;
+      }
+      const action = button.dataset.action;
+      if (action === 'delete' && !confirm(`确认删除选中的 ${selected.length} 项？此操作会删除关联素材、抽取结果和任务记录。`)) {
+        return;
+      }
+      actionInput.value = action;
+      form.submit();
+    });
+  });
+</script>
 {% endblock %}

@@ -3,25 +3,26 @@
 <div class="space-y-8">
   <section class="flex justify-between items-start">
     <div>
-      <h1 class="text-3xl font-bold">{{ post.title if post else 'Post' }}</h1>
+      <div class="mb-3"><a href="/posts" class="text-sm text-blue-400 hover:text-blue-300">← 返回内容库</a></div>
+      <h1 class="text-3xl font-bold">{{ post.title if post else '内容详情' }}</h1>
       <p class="text-slate-400 mt-2">{{ post.source_path if post else '' }}</p>
     </div>
     {% if post %}
     <form method="post" action="/posts/{{ post.id }}/extract">
-      <button class="rounded bg-blue-600 hover:bg-blue-500 px-4 py-2">抽取 / 重新组织</button>
+      <button class="rounded bg-blue-600 hover:bg-blue-500 px-4 py-2">提交处理</button>
     </form>
     {% endif %}
   </section>
 
   <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
-    <h2 class="text-xl font-semibold mb-4">Assets</h2>
+    <h2 class="text-xl font-semibold mb-4">素材清单</h2>
     <div class="space-y-2">
       {% for asset in assets %}
       <div class="grid grid-cols-5 gap-4 border-b border-slate-800 py-3 text-sm">
-        <span>{{ asset.sort_order }}</span>
-        <span>{{ asset.asset_type }}</span>
-        <span>{{ asset.role }}</span>
-        <span>{{ asset.status }}</span>
+        <span>序号 {{ asset.sort_order }}</span>
+        <span>{{ asset_type_labels.get(asset.asset_type, asset.asset_type) }}</span>
+        <span>{{ role_labels.get(asset.role, asset.role) }}</span>
+        <span>{{ status_labels.get(asset.status, asset.status) }}</span>
         <span class="text-slate-400 truncate">{{ asset.path }}</span>
       </div>
       {% else %}
@@ -31,12 +32,16 @@
   </section>
 
   <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
-    <h2 class="text-xl font-semibold mb-4">Extracted Blocks</h2>
+    <h2 class="text-xl font-semibold mb-4">抽取结果</h2>
     <div class="space-y-4">
       {% for block in blocks %}
+      {% set asset = asset_by_id.get(block.asset_id) %}
       <div class="rounded bg-slate-950 border border-slate-800 p-4">
-        <div class="text-sm text-slate-400 mb-2">{{ block.block_type }} · {{ block.asset_id }}</div>
-        <pre class="whitespace-pre-wrap text-sm">{{ block.text }}</pre>
+        <div class="mb-3">
+          <div class="font-medium">{{ asset.file_name if asset else block.asset_id }}</div>
+          <div class="text-xs text-slate-500 mt-1">{{ block_type_labels.get(block.block_type, block.block_type) }}</div>
+        </div>
+        <pre class="whitespace-pre-wrap text-sm text-slate-200">{{ block.text or '暂无内容' }}</pre>
       </div>
       {% else %}
       <div class="text-slate-500">暂无抽取结果</div>
@@ -45,7 +50,7 @@
   </section>
 
   <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
-    <h2 class="text-xl font-semibold mb-4">Documents</h2>
+    <h2 class="text-xl font-semibold mb-4">结构化文档</h2>
     <div class="space-y-4">
       {% for doc in documents %}
       <div class="rounded bg-slate-950 border border-slate-800 p-4">

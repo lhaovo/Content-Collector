@@ -45,13 +45,29 @@ class AIGateway:
 
     def extract_image(self, path: Path) -> ExtractedAssetResult:
         if not self.is_enabled():
-            return ExtractedAssetResult(block_type="image_extract", text="", metadata={"skipped": "missing_api_key"})
+            return ExtractedAssetResult(
+                block_type="image_extract",
+                text="",
+                metadata={"skipped": "missing_api_key", "file_name": path.name},
+            )
         encoded = base64.b64encode(path.read_bytes()).decode("utf-8")
         response = self._chat_multimodal([
             {"type": "image_url", "image_url": {"url": encoded}},
-            {"type": "text", "text": "请提取图片文字、画面信息和社媒整理可用信息，输出严格 JSON。"},
+            {
+                "type": "text",
+                "text": (
+                    f"文件名：{path.name}\n"
+                    "请结合文件名和图片内容提取社媒整理可用信息。"
+                    "只输出严格 JSON，格式为："
+                    "{\"block_type\":\"image_extract\",\"text\":\"...\","
+                    "\"metadata\":{\"file_name\":\"...\",\"ocr\":\"...\","
+                    "\"scene\":\"...\",\"objects\":[],\"notes\":[]}}。"
+                ),
+            },
         ])
-        return _asset_result(response, "image_extract")
+        result = _asset_result(response, "image_extract")
+        result.metadata.setdefault("file_name", path.name)
+        return result
 
     def extract_video(self, path: Path) -> ExtractedAssetResult:
         if not self.is_enabled():
@@ -71,12 +87,12 @@ class AIGateway:
             summary = "\n".join(block.get("text", "")[:200] for block in blocks if block.get("text"))[:500]
             return AssembledDocument(title=title or "未命名帖子", summary=summary, body=body)
         response = self._chat_text(
-            system="你是社媒内容整理助手。只输出严格 JSON。",
+            system="你是社媒内容整理助手。只输出严格 JSON，顶层字段必须包含 title、summary、body、outline、tags、entities。",
             text=f"请组织为结构化帖子文档。标题候选：{title}\n内容块：{json.dumps(blocks, ensure_ascii=False)}",
             thinking=False,
         )
         data = _loads_json(response)
-        return AssembledDocument.model_validate(data)
+        return _assembled_document(data, fallback_title=title, fallback_blocks=blocks)
 
     def _chat_text(self, system: str, text: str, thinking: bool = False) -> str:
         response = self.client.chat.completions.create(
@@ -108,6 +124,44 @@ def _loads_json(text: str) -> Any:
     if start >= 0 and end >= start:
         cleaned = cleaned[start : end + 1]
     return json.loads(cleaned)
+
+
+def _assembled_document(data: Any, fallback_title: str, fallback_blocks: list[dict[str, Any]]) -> AssembledDocument:
+    if not isinstance(data, dict):
+        body = [{"type": block.get("block_type", "paragraph"), "text": block.get("text", "")} for block in fallback_blocks]
+        return AssembledDocument(title=fallback_title or "未命名帖子", body=body)
+
+    document = dict(data.get("post") or data.get("document") or data)
+    title = document.get("title") or data.get("title") or fallback_title or "未命名帖子"
+    summary = document.get("summary") or data.get("summary") or ""
+    body = document.get("body") or data.get("body")
+
+    if not isinstance(body, list):
+        content = document.get("content") or document.get("text") or data.get("content") or data.get("text") or ""
+        body = [{"type": "paragraph", "text": content}] if content else [
+            {"type": block.get("block_type", "paragraph"), "text": block.get("text", "")}
+            for block in fallback_blocks
+        ]
+
+    outline = document.get("outline") or data.get("outline") or []
+    tags = document.get("tags") or data.get("tags") or []
+    entities = document.get("entities") or data.get("entities") or []
+
+    if not isinstance(outline, list):
+        outline = []
+    if not isinstance(tags, list):
+        tags = []
+    if not isinstance(entities, list):
+        entities = []
+
+    return AssembledDocument(
+        title=str(title),
+        summary=str(summary),
+        body=body,
+        outline=outline,
+        tags=[str(tag) for tag in tags],
+        entities=entities,
+    )
 
 
 def _asset_result(response: str, fallback_type: str) -> ExtractedAssetResult:

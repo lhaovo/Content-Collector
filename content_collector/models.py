@@ -77,6 +77,24 @@ class Asset(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=now_utc)
 
 
+class PostProcessingRun(SQLModel, table=True):
+    __tablename__ = "post_processing_runs"
+
+    id: str = Field(default_factory=lambda: new_id("run"), primary_key=True)
+    post_id: str = Field(index=True)
+    status: str = Field(default="queued", index=True)
+    total_steps: int = 0
+    completed_steps: int = 0
+    failed_steps: int = 0
+    current_step: str = ""
+    error_message: str = ""
+    metadata_: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=now_utc)
+    updated_at: datetime = Field(default_factory=now_utc)
+
+
 class ExtractionJob(SQLModel, table=True):
     __tablename__ = "extraction_jobs"
 

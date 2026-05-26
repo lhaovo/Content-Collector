@@ -13,8 +13,9 @@ folder_grouping_v1:
 
 image_extract_v1:
   text: |
-    请从这张图片中提取适合入库的社媒内容信息，输出 JSON：
-    {"block_type":"image_extract","text":"...","metadata":{"ocr":"...","scene":"...","objects":[],"notes":[]}}
+    请结合文件名和图片内容提取适合入库的社媒内容信息。
+    输出 JSON：
+    {"block_type":"image_extract","text":"...","metadata":{"file_name":"...","ocr":"...","scene":"...","objects":[],"notes":[]}}
 
 video_extract_v1:
   text: |

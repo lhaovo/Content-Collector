@@ -5,22 +5,20 @@
 ## 启动
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -e .
+uv sync
 copy .env.example .env
-content-collector init-db
-content-collector serve
+uv run content-collector init-db
+uv run content-collector serve
 ```
 
-打开：`http://127.0.0.1:8000`
+打开：`http://127.0.0.1:8632`
 
 ## 导入
 
 在 Web 页面输入本地文件夹路径，或使用命令：
 
 ```bash
-content-collector ingest "E:\path\to\input"
+uv run content-collector ingest "E:\path\to\input"
 ```
 
 ## 环境变量

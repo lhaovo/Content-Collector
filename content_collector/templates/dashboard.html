@@ -2,7 +2,7 @@
 {% block content %}
 <div class="space-y-8">
   <section>
-    <h1 class="text-3xl font-bold">Dashboard</h1>
+    <h1 class="text-3xl font-bold">概览</h1>
     <p class="text-slate-400 mt-2">本地多模态内容采集和入库管理。</p>
   </section>
 
@@ -18,7 +18,11 @@
   <section class="rounded-xl bg-slate-900 border border-slate-800 p-6">
     <h2 class="text-xl font-semibold mb-4">导入文件夹</h2>
     <form method="post" action="/imports" class="space-y-4">
-      <input name="root_path" class="w-full rounded bg-slate-950 border border-slate-700 px-4 py-3" placeholder="例如 E:\\content\\input" required>
+      <div class="flex gap-3">
+        <input id="root-path-input" name="root_path" class="w-full rounded bg-slate-950 border border-slate-700 px-4 py-3" placeholder="例如 E:\\content\\input" required>
+        <button id="pick-directory-button" type="button" class="shrink-0 rounded bg-slate-700 hover:bg-slate-600 px-4 py-2 font-medium">选择目录</button>
+      </div>
+      <p id="pick-directory-message" class="text-sm text-slate-500"></p>
       <label class="flex items-center gap-2 text-sm text-slate-300">
         <input type="checkbox" name="auto_extract" value="true" class="rounded">
         导入后立即抽取素材
@@ -33,7 +37,7 @@
       {% for scan in scans %}
       <div class="flex justify-between border-b border-slate-800 py-3 text-sm">
         <span>{{ scan.root_path }}</span>
-        <span class="text-slate-400">{{ scan.file_count }} files · {{ scan.status }}</span>
+        <span class="text-slate-400">{{ scan.file_count }} 个文件 · {{ status_labels.get(scan.status, scan.status) }}</span>
       </div>
       {% else %}
       <div class="text-slate-500">暂无扫描记录</div>
@@ -41,4 +45,32 @@
     </div>
   </section>
 </div>
+<script>
+  const pickButton = document.getElementById('pick-directory-button');
+  const pathInput = document.getElementById('root-path-input');
+  const message = document.getElementById('pick-directory-message');
+
+  pickButton?.addEventListener('click', async () => {
+    message.textContent = '正在打开目录选择窗口...';
+    pickButton.disabled = true;
+    pickButton.classList.add('opacity-60', 'cursor-not-allowed');
+
+    try {
+      const response = await fetch('/pick-directory');
+      if (!response.ok) throw new Error('目录选择失败');
+      const data = await response.json();
+      if (data.path) {
+        pathInput.value = data.path;
+        message.textContent = '已选择目录。';
+      } else {
+        message.textContent = '未选择目录。';
+      }
+    } catch (error) {
+      message.textContent = '无法打开目录选择窗口，请手动输入目录路径。';
+    } finally {
+      pickButton.disabled = false;
+      pickButton.classList.remove('opacity-60', 'cursor-not-allowed');
+    }
+  });
+</script>
 {% endblock %}
