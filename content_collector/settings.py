@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     content_collector_model: str = "glm-4.6v-flash"
     content_collector_auto_accept_confidence: float = 0.86
     content_collector_enable_ai_grouping: bool = False
+    content_collector_upload_dir: str = "./data/uploads"
+    content_collector_media_dir: str = "./data/media"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

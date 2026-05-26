@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-8">
+  <section class="flex items-start justify-between gap-6">
+    <div>
+      <div class="mb-3"><a href="/social" class="text-sm text-blue-400 hover:text-blue-300">← 返回社媒归档</a></div>
+      <h1 class="text-3xl font-bold">{{ account.author_name }}</h1>
+      <p class="text-slate-400 mt-2">{{ account.platform }} / {{ account.author_id }}</p>
+    </div>
+    <form method="post" action="/social/{{ account.platform }}/{{ account.author_id }}/download">
+      <button class="rounded bg-emerald-600 hover:bg-emerald-500 px-4 py-2 font-medium">批量下载待下载资源</button>
+    </form>
+  </section>
+
+  <section class="rounded bg-slate-900 border border-slate-800 overflow-hidden">
+    <div class="flex items-center justify-between p-6 border-b border-slate-800">
+      <div>
+        <h2 class="text-xl font-semibold">内容</h2>
+        <p class="text-sm text-slate-400 mt-1">下载任务在后台低速执行，刷新页面可查看本地文件数量变化。</p>
+      </div>
+      <div class="text-sm text-slate-400">{{ rows|length }} 条</div>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-800 text-slate-300">
+        <tr>
+          <th class="text-left p-4">标题</th>
+          <th class="text-left p-4">类型</th>
+          <th class="text-left p-4">发布时间</th>
+          <th class="text-left p-4">素材</th>
+          <th class="text-left p-4">互动</th>
+          <th class="text-left p-4">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% set post = row.post %}
+        {% set meta = post.metadata_ %}
+        {% set stats = meta.get('stats') or {} %}
+        <tr class="border-t border-slate-800 hover:bg-slate-800/50 align-top">
+          <td class="p-4 max-w-xl">
+            <a class="text-blue-400 hover:text-blue-300" href="/posts/{{ post.id }}">{{ post.title or post.id }}</a>
+            <div class="text-xs text-slate-500 mt-1 break-all">{{ meta.get('note_url') }}</div>
+          </td>
+          <td class="p-4">{{ meta.get('post_type') or '-' }}</td>
+          <td class="p-4 text-slate-400">{{ meta.get('published_at') or '-' }}</td>
+          <td class="p-4">
+            <div>{{ row.downloaded_count }} / {{ row.asset_count }} 已本地</div>
+            {% if row.pending_count %}<div class="text-xs text-amber-300 mt-1">{{ row.pending_count }} 个待下载</div>{% endif %}
+            {% if row.failed_count %}<div class="text-xs text-red-300 mt-1">{{ row.failed_count }} 个失败</div>{% endif %}
+          </td>
+          <td class="p-4 text-slate-400">
+            <div>赞 {{ stats.get('likes') or 0 }}</div>
+            <div>藏 {{ stats.get('favorites') or 0 }}</div>
+            <div>评 {{ stats.get('comments') or 0 }}</div>
+            <div>转 {{ stats.get('shares') or 0 }}</div>
+          </td>
+          <td class="p-4"><a class="text-slate-300 hover:text-white" target="_blank" href="{{ meta.get('note_url') }}">打开原文</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="p-6 text-slate-500">这个账号还没有内容。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

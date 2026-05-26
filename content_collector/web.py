@@ -3,12 +3,13 @@ from __future__ import annotations
 from collections import defaultdict
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlmodel import Session, select
 
 from content_collector.database import get_session, new_session
 from content_collector.models import Asset, ExtractedBlock, ExtractionJob, FolderScan, Post, PostDocument, PostGroupCandidate, PostProcessingRun, now_utc
+from content_collector.social_xlsx import download_account_assets, import_social_xlsx, list_social_accounts, list_social_posts, save_uploaded_xlsx
 from content_collector.workflows import ImportWorkflow
 
 router = APIRouter()
@@ -186,6 +187,11 @@ def _extract_post_task(post_id: str, run_id: str | None = None) -> None:
         ImportWorkflow(session).extract_post(post_id, run_id=run_id)
 
 
+def _download_account_assets_task(platform: str, author_id: str) -> None:
+    with new_session() as session:
+        download_account_assets(session, platform, author_id)
+
+
 def create_processing_run(session: Session, post: Post) -> PostProcessingRun:
     asset_count = len(session.exec(select(Asset).where(Asset.post_id == post.id)).all())
     run = PostProcessingRun(
@@ -251,6 +257,61 @@ def pick_directory():
 def import_folder(root_path: str = Form(...), auto_extract: bool = Form(False), session: Session = Depends(get_session)):
     ImportWorkflow(session).run(root_path, auto_extract=auto_extract)
     return RedirectResponse("/posts", status_code=303)
+
+
+@router.get("/social", response_class=HTMLResponse)
+def social_archive(request: Request, session: Session = Depends(get_session)):
+    return templates(request).TemplateResponse(
+        request,
+        "social.html",
+        page_context(accounts=list_social_accounts(session), import_result=None, import_error=""),
+    )
+
+
+@router.post("/social/import", response_class=HTMLResponse)
+async def social_import(
+    request: Request,
+    xlsx_file: UploadFile = File(...),
+    platform: str = Form("xhs"),
+    session: Session = Depends(get_session),
+):
+    try:
+        content = await xlsx_file.read()
+        uploaded_path = save_uploaded_xlsx(xlsx_file.filename or "social-export.xlsx", content)
+        result = import_social_xlsx(session, uploaded_path, platform=platform)
+        return templates(request).TemplateResponse(
+            request,
+            "social.html",
+            page_context(accounts=list_social_accounts(session), import_result=result, import_error=""),
+        )
+    except Exception as error:
+        return templates(request).TemplateResponse(
+            request,
+            "social.html",
+            page_context(accounts=list_social_accounts(session), import_result=None, import_error=str(error)),
+            status_code=400,
+        )
+
+
+@router.get("/social/{platform}/{author_id}", response_class=HTMLResponse)
+def social_account(platform: str, author_id: str, request: Request, session: Session = Depends(get_session)):
+    rows = list_social_posts(session, platform, author_id)
+    account = {
+        "platform": platform,
+        "author_id": author_id,
+        "author_name": rows[0]["post"].metadata_.get("author_name") if rows else author_id,
+    }
+    return templates(request).TemplateResponse(
+        request,
+        "social_account.html",
+        page_context(account=account, rows=rows),
+    )
+
+
+@router.post("/social/{platform}/{author_id}/download")
+def social_download_account(platform: str, author_id: str, background_tasks: BackgroundTasks):
+    background_tasks.add_task(_download_account_assets_task, platform, author_id)
+    return RedirectResponse(f"/social/{platform}/{author_id}", status_code=303)
 
 
 @router.post("/candidates/{candidate_id}/accept")

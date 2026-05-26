@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="space-y-8">
+  <section>
+    <h1 class="text-3xl font-bold">社媒归档</h1>
+    <p class="text-slate-400 mt-2">手动上传插件导出的 xlsx，把笔记、正文和媒体链接入库；后续按平台和账号查看并批量下载资源。</p>
+  </section>
+
+  <section class="rounded bg-slate-900 border border-slate-800 p-6">
+    <form method="post" action="/social/import" enctype="multipart/form-data" class="grid grid-cols-[160px_1fr_auto] gap-3 items-end">
+      <label class="block">
+        <span class="block text-sm text-slate-400 mb-2">平台</span>
+        <select name="platform" class="w-full rounded bg-slate-950 border border-slate-700 px-3 py-2">
+          <option value="xhs">小红书</option>
+          <option value="douyin">抖音</option>
+          <option value="kuaishou">快手</option>
+        </select>
+      </label>
+      <label class="block">
+        <span class="block text-sm text-slate-400 mb-2">xlsx 文件</span>
+        <input type="file" name="xlsx_file" accept=".xlsx" required class="w-full rounded bg-slate-950 border border-slate-700 px-3 py-2 file:mr-4 file:rounded file:border-0 file:bg-slate-700 file:px-3 file:py-1 file:text-slate-100">
+      </label>
+      <button class="rounded bg-blue-600 hover:bg-blue-500 px-5 py-2 font-medium">上传并导入</button>
+    </form>
+
+    {% if import_error %}
+    <div class="mt-5 rounded border border-red-800 bg-red-950/30 p-4 text-red-100">{{ import_error }}</div>
+    {% endif %}
+
+    {% if import_result %}
+    <div class="mt-5 grid grid-cols-5 gap-3 text-sm">
+      <div class="rounded bg-slate-950 border border-slate-800 p-3"><div class="text-slate-500">行数</div><div class="text-xl font-semibold mt-1">{{ import_result.total_rows }}</div></div>
+      <div class="rounded bg-slate-950 border border-slate-800 p-3"><div class="text-slate-500">新增内容</div><div class="text-xl font-semibold mt-1">{{ import_result.created_posts }}</div></div>
+      <div class="rounded bg-slate-950 border border-slate-800 p-3"><div class="text-slate-500">更新内容</div><div class="text-xl font-semibold mt-1">{{ import_result.updated_posts }}</div></div>
+      <div class="rounded bg-slate-950 border border-slate-800 p-3"><div class="text-slate-500">新增素材</div><div class="text-xl font-semibold mt-1">{{ import_result.created_assets }}</div></div>
+      <div class="rounded bg-slate-950 border border-slate-800 p-3"><div class="text-slate-500">待下载</div><div class="text-xl font-semibold mt-1">{{ import_result.remote_assets }}</div></div>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="rounded bg-slate-900 border border-slate-800 overflow-hidden">
+    <div class="flex items-center justify-between p-6 border-b border-slate-800">
+      <div>
+        <h2 class="text-xl font-semibold">账号</h2>
+        <p class="text-sm text-slate-400 mt-1">按平台和账号聚合已导入内容。</p>
+      </div>
+      <div class="text-sm text-slate-400">{{ accounts|length }} 个账号</div>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-800 text-slate-300">
+        <tr>
+          <th class="text-left p-4">平台</th>
+          <th class="text-left p-4">账号</th>
+          <th class="text-left p-4">内容数</th>
+          <th class="text-left p-4">更新时间</th>
+          <th class="text-left p-4">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for account in accounts %}
+        <tr class="border-t border-slate-800 hover:bg-slate-800/50">
+          <td class="p-4">{{ account.platform }}</td>
+          <td class="p-4">
+            <div class="font-medium">{{ account.author_name }}</div>
+            <div class="text-xs text-slate-500 mt-1">{{ account.author_id }}</div>
+          </td>
+          <td class="p-4">{{ account.post_count }}</td>
+          <td class="p-4 text-slate-500">{{ account.updated_at }}</td>
+          <td class="p-4"><a class="text-blue-400 hover:text-blue-300" href="/social/{{ account.platform }}/{{ account.author_id }}">查看</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="p-6 text-slate-500">还没有导入社媒 xlsx。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}
